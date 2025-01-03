@@ -1,0 +1,9 @@
+{
+  "development": {
+    "username": "citrine",
+    "password": "citrine",
+    "database": "citrine",
+    "host": "ocpp-db",
+    "dialect": "postgres"
+  }
+} 

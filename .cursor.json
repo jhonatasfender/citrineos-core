@@ -1,0 +1,175 @@
+{
+  "project": {
+    "name": "citrineos-core",
+    "description": "Implementação do OCPP 2.0.1 com integração EVerest",
+    "workspace": "/home/jonatas/projects/connect/citrineos-core",
+    "version": "1.0.0",
+    "repository": {
+      "everest": "https://github.com/everest/everest-demo",
+      "citrineos": "https://github.com/citrineos/citrineos-core"
+    }
+  },
+  "structure": {
+    "root": {
+      "config_files": {
+        "package.json": {
+          "description": "Configuração principal do projeto",
+          "dependencies": true
+        },
+        "tsconfig.json": "Configuração TypeScript principal",
+        "tsconfig.build.json": "Configuração TypeScript para build",
+        "tsconfig.eslint.json": "Configuração TypeScript para ESLint",
+        ".prettierrc": "Configuração do Prettier",
+        ".dockerignore": "Arquivos ignorados no Docker build",
+        "eslint.config.js": "Configuração do ESLint",
+        "jest.config.ts": "Configuração de testes"
+      },
+      "main_directories": {
+        "00_Base": {
+          "description": "Módulo base com interfaces OCPP",
+          "key_files": {
+            "json-schema-processor.js": "Processador de schemas JSON",
+            "package.json": "Dependências do módulo base"
+          }
+        },
+        "01_Data": {
+          "description": "Módulo de acesso a dados",
+          "key_files": {
+            "sequelize.config.js": "Configuração do Sequelize",
+            "package.json": "Dependências do módulo de dados"
+          }
+        },
+        "02_Util": {
+          "description": "Módulo de utilidades",
+          "key_files": {
+            "package.json": "Dependências do módulo de utilidades"
+          }
+        },
+        "03_Modules": {
+          "description": "Módulos funcionais",
+          "submodules": [
+            "Certificates",
+            "Configuration",
+            "EVDriver",
+            "Monitoring",
+            "OcppRouter",
+            "Reporting",
+            "SmartCharging",
+            "Tenant",
+            "Transactions"
+          ]
+        },
+        "Server": {
+          "description": "Implementação do servidor",
+          "key_files": {
+            "docker-compose.yml": "Configuração Docker principal",
+            "docker-compose.swarm.yml": "Configuração Docker para Swarm",
+            "deploy.Dockerfile": "Dockerfile para produção",
+            "local.Dockerfile": "Dockerfile para desenvolvimento"
+          },
+          "subdirectories": {
+            "everest": {
+              "description": "Configuração do EVerest",
+              "key_files": {
+                "docker-compose.yml": "Configuração Docker do EVerest",
+                "start.sh": "Script de inicialização",
+                ".env": "Variáveis de ambiente"
+              }
+            },
+            "scripts": {
+              "description": "Scripts de inicialização e manutenção",
+              "files": {
+                "init-db.sql": "Inicialização do banco de dados",
+                "init-citrine.sh": "Inicialização do Citrine",
+                "clean.sh": "Limpeza do ambiente"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "docker": {
+    "networks": {
+      "everest": {
+        "description": "Rede para comunicação interna do EVerest",
+        "name": "everest",
+        "services": ["manager", "nodered", "mqtt-server"]
+      },
+      "server_server_default": {
+        "description": "Rede para comunicação entre CitrineOS e EVerest",
+        "external": true,
+        "services": ["citrine", "manager", "ocpp-db", "amqp-broker", "directus"],
+        "notes": "Rede criada pelo docker-compose principal no diretório Server, com prefixo do diretório"
+      }
+    },
+    "services": {
+      "citrine": {
+        "description": "Serviço principal do CitrineOS",
+        "port": 8081,
+        "dependencies": ["ocpp-db", "amqp-broker", "directus"],
+        "environment": {
+          "SYNC_DB": "true",
+          "DATABASE_URL": "postgresql://ocpp:ocpp@ocpp-db:5435/ocpp"
+        },
+        "endpoints": {
+          "websocket": "/cp001",
+          "health": "/health"
+        },
+        "container_name": "server-citrine-1"
+      },
+      "everest": {
+        "description": "Simulador de carregador EV",
+        "components": {
+          "manager": {
+            "image": "ghcr.io/everest/everest-demo/manager:0.0.23",
+            "port": 8888,
+            "environment": {
+              "EVEREST_TARGET_URL": "ws://server-citrine-1:8081/cp001"
+            }
+          },
+          "nodered": {
+            "image": "ghcr.io/everest/everest-demo/nodered:0.0.23",
+            "port": 1881,
+            "notes": "Porta alterada de 1880 para 1881 para evitar conflitos"
+          },
+          "mqtt-server": {
+            "image": "eclipse-mosquitto:2.0.15",
+            "port": 1883
+          }
+        }
+      }
+    }
+  },
+  "database": {
+    "type": "postgresql",
+    "port": 5435,
+    "name": "ocpp",
+    "user": "ocpp",
+    "image": "citrineos/postgis:v1.1.0",
+    "extensions": ["postgis", "pg_trgm"]
+  },
+  "demos": {
+    "basic": {
+      "ac_simulation": {
+        "description": "Simulação AC com um EV e um EVSE",
+        "command": "curl https://raw.githubusercontent.com/everest/everest-demo/main/demo-ac.sh | bash"
+      },
+      "dc_simulation": {
+        "description": "Simulação DC com ISO 15118-2",
+        "command": "curl https://raw.githubusercontent.com/everest/everest-demo/main/demo-iso15118-2-dc.sh | bash"
+      }
+    },
+    "ocpp": {
+      "maeve": {
+        "description": "Demonstrações com CSMS MaEVe",
+        "security_profiles": {
+          "sp1": {
+            "description": "OCPP 2.0.1 com Security Profile 1",
+            "command": "curl https://raw.githubusercontent.com/everest/everest-demo/main/demo-iso15118-2-ocpp-201.sh | bash -s -- -1"
+          }
+        }
+      }
+    }
+  }
+} 

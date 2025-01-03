@@ -1,4 +1,4 @@
-version: '3'
+version: '3.8'
 services:
   amqp-broker:
     image: rabbitmq:3-management
@@ -15,73 +15,58 @@ services:
       interval: 10s
       timeout: 10s
       retries: 3
+    networks:
+      - server_default
+
   ocpp-db:
     image: citrineos/postgis:v1.1.0
-    ports:
-      - 5432:5432
-    volumes:
-      - ./data/postgresql/pgdata:/var/lib/postgresql/data
     environment:
       POSTGRES_DB: citrine
       POSTGRES_USER: citrine
-      POSTGRES_PASSWORD: 'citrine'
+      POSTGRES_PASSWORD: citrine
+    volumes:
+      # - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
     healthcheck:
-      test: 'pg_isready --username=citrine'
+      test: ["CMD-SHELL", "pg_isready -U citrine"]
       interval: 5s
-      timeout: 10s
+      timeout: 5s
       retries: 5
+    networks:
+      - server_default
 
   citrine:
     build:
       context: ../
       dockerfile: ./Server/deploy.Dockerfile
     volumes:
-      - ../package-lock.json:/usr/local/apps/citrineos/package-lock-host.json
-      - ../package.json:/usr/local/apps/citrineos/package.json
-      - ../tsconfig.json:/usr/local/apps/citrineos/tsconfig.json
-      - ../tsconfig.build.json:/usr/local/apps/citrineos/tsconfig.build.json
-      - ../Server:/usr/local/apps/citrineos/Server
-      - ../00_Base:/usr/local/apps/citrineos/00_Base
-      - ../01_Data:/usr/local/apps/citrineos/01_Data
-      - ../02_Util:/usr/local/apps/citrineos/02_Util
-      - ../03_Modules/Certificates:/usr/local/apps/citrineos/03_Modules/Certificates
-      - ../03_Modules/Configuration:/usr/local/apps/citrineos/03_Modules/Configuration
-      - ../03_Modules/EVDriver:/usr/local/apps/citrineos/03_Modules/EVDriver
-      - ../03_Modules/Monitoring:/usr/local/apps/citrineos/03_Modules/Monitoring
-      - ../03_Modules/OcppRouter:/usr/local/apps/citrineos/03_Modules/OcppRouter
-      - ../03_Modules/Reporting:/usr/local/apps/citrineos/03_Modules/Reporting
-      - ../03_Modules/SmartCharging:/usr/local/apps/citrineos/03_Modules/SmartCharging
-      - ../03_Modules/Transactions:/usr/local/apps/citrineos/03_Modules/Transactions
-      - /usr/local/apps/citrineos/node_modules
-      - /usr/local/apps/citrineos/Server/node_modules
-      - /usr/local/apps/citrineos/00_Base/node_modules
-      - /usr/local/apps/citrineos/01_Data/node_modules
-      - /usr/local/apps/citrineos/02_Util/node_modules
-      - /usr/local/apps/citrineos/03_Modules/Certificates/node_modules
-      - /usr/local/apps/citrineos/03_Modules/Configuration/node_modules
-      - /usr/local/apps/citrineos/03_Modules/EVDriver/node_modules
-      - /usr/local/apps/citrineos/03_Modules/Monitoring/node_modules
-      - /usr/local/apps/citrineos/03_Modules/OcppRouter/node_modules
-      - /usr/local/apps/citrineos/03_Modules/Reporting/node_modules
-      - /usr/local/apps/citrineos/03_Modules/SmartCharging/node_modules
-      - /usr/local/apps/citrineos/03_Modules/Transactions/node_modules
-      - /usr/local/apps/citrineos/dist/
-      - /usr/local/apps/citrineos/Server/dist/
-      - /usr/local/apps/citrineos/00_Base/dist/
-      - /usr/local/apps/citrineos/01_Data/dist/
-      - /usr/local/apps/citrineos/02_Util/dist/
-      - /usr/local/apps/citrineos/03_Modules/Certificates/dist/
-      - /usr/local/apps/citrineos/03_Modules/Configuration/dist/
-      - /usr/local/apps/citrineos/03_Modules/EVDriver/dist/
-      - /usr/local/apps/citrineos/03_Modules/Monitoring/dist/
-      - /usr/local/apps/citrineos/03_Modules/OcppRouter/dist/
-      - /usr/local/apps/citrineos/03_Modules/Reporting/dist/
-      - /usr/local/apps/citrineos/03_Modules/SmartCharging/dist/
-      - /usr/local/apps/citrineos/03_Modules/Transactions/dist/
+      - ../package.json:/usr/local/apps/citrineos/package.json:ro
+      - ../package-lock.json:/usr/local/apps/citrineos/package-lock-host.json:ro
+      - ../tsconfig.json:/usr/local/apps/citrineos/tsconfig.json:ro
+      - ../tsconfig.build.json:/usr/local/apps/citrineos/tsconfig.build.json:ro
+      - ../Server:/usr/local/apps/citrineos/Server:ro
+      - ../00_Base:/usr/local/apps/citrineos/00_Base:ro
+      - ../01_Data:/usr/local/apps/citrineos/01_Data:ro
+      - ../02_Util:/usr/local/apps/citrineos/02_Util:ro
+      - ../03_Modules/Certificates:/usr/local/apps/citrineos/03_Modules/Certificates:ro
+      - ../03_Modules/Configuration:/usr/local/apps/citrineos/03_Modules/Configuration:ro
+      - ../03_Modules/EVDriver:/usr/local/apps/citrineos/03_Modules/EVDriver:ro
+      - ../03_Modules/Monitoring:/usr/local/apps/citrineos/03_Modules/Monitoring:ro
+      - ../03_Modules/OcppRouter:/usr/local/apps/citrineos/03_Modules/OcppRouter:ro
+      - ../03_Modules/Reporting:/usr/local/apps/citrineos/03_Modules/Reporting:ro
+      - ../03_Modules/SmartCharging:/usr/local/apps/citrineos/03_Modules/SmartCharging:ro
+      - ../03_Modules/Transactions:/usr/local/apps/citrineos/03_Modules/Transactions:ro
+      - ./scripts:/usr/local/apps/citrineos/scripts
     environment:
       APP_NAME: 'all'
       APP_ENV: 'docker'
+      SYNC_DB: 'true'
       CITRINEOS_UTIL_DIRECTUS_TOKEN: '-ssaT85n4S-wVD21LKOCDwvXN5PtnJc0'
+      DATABASE_URL: postgres://citrine:citrine@ocpp-db:5432/citrine
+    entrypoint: ["/usr/local/apps/citrineos/scripts/init-citrine.sh"]
+    command: ["node", "/usr/local/apps/citrineos/Server/dist/index.js"]
     depends_on:
       ocpp-db:
         condition: service_healthy
@@ -96,7 +81,9 @@ services:
       - 8085:8085
       - 8443:8443
       - 8444:8444
-      - 9229:9229
+      - 9230:9229
+    networks:
+      - server_default
 
   directus:
     build:
@@ -132,3 +119,12 @@ services:
       interval: 15s
       timeout: 15s
       retries: 3
+    networks:
+      - server_default
+
+volumes:
+  pgdata:
+
+networks:
+  server_default:
+    driver: bridge

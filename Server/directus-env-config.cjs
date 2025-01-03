@@ -9,8 +9,8 @@ module.exports = function (_env) {
     DIRECTUS_CHARGING_STATION_UPDATE_STATUS_PATH:
       '/charging-stations/update-station-status',
     // Environment-specific urls
-    CITRINEOS_URL: 'http://citrine:8080',
-    DIRECTUS_URL: 'http://directus:8055',
+    CITRINEOS_URL: 'http://server-citrine-1:8080',
+    DIRECTUS_URL: 'http://server-directus-1:8055',
   };
 
   return config;

@@ -1,41 +1,60 @@
-version: '3.6'
+version: '3.9'
 
 services:
   mqtt-server:
-    image: ghcr.io/everest/everest-demo/mqtt-server:${EVEREST_IMAGE_TAG}
-    platform: linux/x86_64
+    image: eclipse-mosquitto:2.0.15
+    ports:
+      - "1883:1883"
+    networks:
+      - everest
+      - server_server_default
     logging:
       driver: none
 
+  nodered:
+    image: ghcr.io/everest/everest-demo/nodered:0.0.23
+    user: "1000:1000"
+    ports:
+      - "1881:1880"
+    environment:
+      - MQTT_SERVER_ADDRESS=mqtt-server
+      - FLOWS=/flows/flows.json
+    volumes:
+      - ./flows:/flows
+    depends_on:
+      - mqtt-server
+    networks:
+      - everest
+      - server_server_default
+
   manager:
-    build:
-      dockerfile: Dockerfile
-      args:
-        - EVEREST_TARGET_URL=${EVEREST_TARGET_URL}
-        - EVEREST_IMAGE_TAG=${EVEREST_IMAGE_TAG}
+    image: ghcr.io/everest/everest-demo/manager:0.0.23
     platform: linux/x86_64
     ports:
-      - 8888:8888
+      - "8888:8888"
     deploy:
       resources:
         limits:
-          cpus: '2'
-          memory: '4G'
+          cpus: '1.0'
+          memory: '1024mb'
     depends_on:
       - mqtt-server
     environment:
       - MQTT_SERVER_ADDRESS=mqtt-server
+      - EVEREST_TARGET_URL=ws://server-citrine-1:8081/cp001
+    volumes:
+      - ./config:/ext/source/config
+      - ./logs:/tmp/everest_ocpp_logs
     sysctls:
       - net.ipv6.conf.all.disable_ipv6=0
     extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - "host.docker.internal:host-gateway"
+    networks:
+      - everest
+      - server_server_default
 
-  nodered:
-    image: ghcr.io/everest/everest-demo/nodered:${EVEREST_IMAGE_TAG}
-    depends_on:
-      - mqtt-server
-    ports:
-      - 1880:1880
-    environment:
-      - MQTT_SERVER_ADDRESS=mqtt-server
-      - FLOWS=/config/config-sil-two-evse-flow.json
+networks:
+  everest:
+    name: everest
+  server_server_default:
+    external: true
